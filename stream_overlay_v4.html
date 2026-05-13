@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stream Overlay</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: transparent;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    min-height: 100vh;
+    padding: 14px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .overlay {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    padding: 5px 10px;
+    border-radius: 4px;
+    animation: fadeIn 0.6s ease both;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .text {
+    font-size: 11px;
+    font-weight: 300;
+    color: rgba(255, 255, 255, 0.88);
+    letter-spacing: 0.05em;
+    line-height: 1;
+  }
+
+  .ampm {
+    font-size: 9px;
+    font-weight: 300;
+    color: rgba(255, 255, 255, 0.55);
+    letter-spacing: 0.06em;
+    line-height: 1;
+  }
+
+  .sep {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.25);
+  }
+</style>
+</head>
+<body>
+
+<div class="overlay">
+  <span class="text" id="time">--:--</span>
+  <span class="ampm" id="ampm">--</span>
+  <span class="sep">·</span>
+  <span class="text" id="date">----/--/--</span>
+</div>
+
+<script>
+function update() {
+  const now = new Date();
+
+  let h = now.getHours();
+  const m   = String(now.getMinutes()).padStart(2, '0');
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+
+  const y  = now.getFullYear();
+  const mo = String(now.getMonth() + 1).padStart(2, '0');
+  const d  = String(now.getDate()).padStart(2, '0');
+
+  document.getElementById('time').textContent = `${h}:${m}`;
+  document.getElementById('ampm').textContent = ampm;
+  document.getElementById('date').textContent = `${y}/${mo}/${d}`;
+}
+update();
+setInterval(update, 1000);
+</script>
+</body>
+</html>
