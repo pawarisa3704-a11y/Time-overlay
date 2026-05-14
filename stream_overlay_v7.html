@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stream Overlay</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: transparent;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    min-height: 100vh;
+    padding: 14px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .overlay {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    padding: 6px 12px;
+    border-radius: 4px;
+    animation: fadeIn 0.6s ease both;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .text {
+    font-size: 13px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.95);
+    letter-spacing: 0.05em;
+    line-height: 1;
+  }
+
+  .ampm {
+    font-size: 11px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.60);
+    letter-spacing: 0.06em;
+  }
+
+  .sep {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.25);
+  }
+</style>
+</head>
+<body>
+
+<div class="overlay">
+  <span class="text" id="time">--:--</span>
+  <span class="ampm" id="ampm">--</span>
+  <span class="sep">·</span>
+  <span class="text" id="date">----/--/--</span>
+  <span class="sep" id="sep3" style="display:none">·</span>
+  <span class="text" id="temp" style="display:none"></span>
+</div>
+
+<script>
+// ── Clock ─────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  let h     = now.getHours();
+  const m   = String(now.getMinutes()).padStart(2, '0');
+  const ap  = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  const y   = now.getFullYear();
+  const mo  = String(now.getMonth() + 1).padStart(2, '0');
+  const d   = String(now.getDate()).padStart(2, '0');
+  document.getElementById('time').textContent = `${h}:${m}`;
+  document.getElementById('ampm').textContent = ap;
+  document.getElementById('date').textContent = `${y}/${mo}/${d}`;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ── Temperature ───────────────────────────────────────────
+async function loadFromCoords(lat, lon) {
+  try {
+    const res  = await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m&temperature_unit=celsius`
+    );
+    const data = await res.json();
+    const temp = Math.round(data.current.temperature_2m);
+    document.getElementById('temp').textContent = `${temp}°C`;
+    document.getElementById('temp').style.display = 'inline';
+    document.getElementById('sep3').style.display = 'inline';
+  } catch {}
+}
+
+async function loadFromIP() {
+  try {
+    const res  = await fetch('https://ipapi.co/json/');
+    const data = await res.json();
+    if (data.latitude && data.longitude) {
+      await loadFromCoords(data.latitude, data.longitude);
+    }
+  } catch {}
+}
+
+function init() {
+  if (!navigator.geolocation) { loadFromIP(); return; }
+
+  const fallback = setTimeout(loadFromIP, 8000);
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      clearTimeout(fallback);
+      loadFromCoords(pos.coords.latitude, pos.coords.longitude);
+    },
+    () => { clearTimeout(fallback); loadFromIP(); },
+    { enableHighAccuracy: false, timeout: 7000, maximumAge: 300000 }
+  );
+}
+
+init();
+</script>
+</body>
+</html>
