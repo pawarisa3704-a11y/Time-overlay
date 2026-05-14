@@ -113,7 +113,7 @@ async function loadFromCoords(lat, lon) {
     const weather = await weatherRes.json();
 
     const addr = geo?.address || {};
-    const city = addr.city || addr.town || addr.village || addr.county || addr.state || '';
+    const city = addr.state || addr.province || addr.region || addr.county || '';
     const temp = Math.round(weather.current.temperature_2m);
 
     showGeo(city, temp);
