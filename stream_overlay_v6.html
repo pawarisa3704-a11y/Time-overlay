@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stream Overlay</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: transparent;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    min-height: 100vh;
+    padding: 14px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .overlay {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    padding: 5px 10px;
+    border-radius: 4px;
+    animation: fadeIn 0.6s ease both;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .text {
+    font-size: 11px;
+    font-weight: 300;
+    color: rgba(255, 255, 255, 0.88);
+    letter-spacing: 0.05em;
+    line-height: 1;
+  }
+
+  .ampm {
+    font-size: 9px;
+    font-weight: 300;
+    color: rgba(255, 255, 255, 0.50);
+    letter-spacing: 0.06em;
+  }
+
+  .sep {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.22);
+  }
+</style>
+</head>
+<body>
+
+<div class="overlay">
+  <span class="text" id="time">--:--</span>
+  <span class="ampm" id="ampm">--</span>
+  <span class="sep">·</span>
+  <span class="text" id="date">----/--/--</span>
+  <span class="sep" id="sep2" style="display:none">·</span>
+  <span class="text" id="city" style="display:none"></span>
+  <span class="sep" id="sep3" style="display:none">·</span>
+  <span class="text" id="temp" style="display:none"></span>
+</div>
+
+<script>
+// ── Clock ─────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  let h     = now.getHours();
+  const m   = String(now.getMinutes()).padStart(2, '0');
+  const ap  = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  const y   = now.getFullYear();
+  const mo  = String(now.getMonth() + 1).padStart(2, '0');
+  const d   = String(now.getDate()).padStart(2, '0');
+  document.getElementById('time').textContent = `${h}:${m}`;
+  document.getElementById('ampm').textContent = ap;
+  document.getElementById('date').textContent = `${y}/${mo}/${d}`;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ── แสดงเมืองและอุณหภูมิ ──────────────────────────────────
+function showGeo(city, tempC) {
+  if (city) {
+    document.getElementById('city').textContent = city;
+    document.getElementById('city').style.display = 'inline';
+    document.getElementById('sep2').style.display = 'inline';
+  }
+  document.getElementById('temp').textContent = `${tempC}°C`;
+  document.getElementById('temp').style.display = 'inline';
+  document.getElementById('sep3').style.display = 'inline';
+}
+
+// ── ดึงข้อมูลจาก lat/lon ──────────────────────────────────
+async function loadFromCoords(lat, lon) {
+  try {
+    const [geoRes, weatherRes] = await Promise.all([
+      fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`, {
+        headers: { 'Accept-Language': 'en' }
+      }),
+      fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m&temperature_unit=celsius`)
+    ]);
+
+    const geo     = await geoRes.json();
+    const weather = await weatherRes.json();
+
+    const addr = geo?.address || {};
+    const city = addr.city || addr.town || addr.village || addr.county || addr.state || '';
+    const temp = Math.round(weather.current.temperature_2m);
+
+    showGeo(city, temp);
+  } catch (e) {
+    console.log('weather fetch failed', e);
+  }
+}
+
+// ── Fallback: ดึง location จาก IP ────────────────────────
+async function loadFromIP() {
+  try {
+    const res  = await fetch('https://ipapi.co/json/');
+    const data = await res.json();
+    if (data.latitude && data.longitude) {
+      await loadFromCoords(data.latitude, data.longitude);
+    }
+  } catch (e) {
+    console.log('ip fallback failed', e);
+  }
+}
+
+// ── Main: ลอง GPS ก่อน ถ้าไม่ได้ใช้ IP แทน ──────────────
+function init() {
+  if (!navigator.geolocation) {
+    loadFromIP();
+    return;
+  }
+
+  // ตั้ง timeout 8 วินาที ถ้า GPS ช้าเกินไปให้ใช้ IP แทน
+  const fallbackTimer = setTimeout(() => {
+    loadFromIP();
+  }, 8000);
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      clearTimeout(fallbackTimer);
+      loadFromCoords(pos.coords.latitude, pos.coords.longitude);
+    },
+    () => {
+      clearTimeout(fallbackTimer);
+      loadFromIP();
+    },
+    { enableHighAccuracy: false, timeout: 7000, maximumAge: 300000 }
+  );
+}
+
+init();
+</script>
+</body>
+</html>
